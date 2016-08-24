@@ -267,7 +267,7 @@ function __getLatestRelease {
         echo ${dURL}
 
         if [ "${upgrade}" -eq 1 ]; then
-            wget -q -O - "${dURL}" | bunzip2 -c ## > ${xdl_install_path}
+            wget -q -O - "${dURL}" | bunzip2 -c > ${xdl_install_path}
         fi
     else
         echo "Already up to date"
