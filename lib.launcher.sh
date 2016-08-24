@@ -3,22 +3,26 @@
 : ${debug=0}
 : ${verbose=0}
 : ${this_script="$0"}
+: ${workingdir=$(cd "$(cd "$(dirname "$this_script")"; pwd -P)"; pwd)}
 
 : ${xdl_tmp="/tmp/launcher.sh"}
-: ${xdl_conf="sample.ini"}
+: ${xdl_log_dir="${workingdir}/logs"}
+: ${xdl_conf="launcher.sample.ini"}
 
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 24 * 60 * 60 ))
-xdl_version="1.0"
+xdl_version="0.1"
+
+xdl_install_path="${BASH_SOURCE}"
 
 ###### Debug + Error reporting ###########################################################################
 function error {
-    local cal=`caller 0 | head -n 1`
-    local fun=`echo ${cal} | awk '{ print $2; }'`
-    local file=`echo ${cal} | awk '{ print $3; }'`; file=`basename ${file}`
+    local call=`caller 0 | head -n 1`
+    local func=`echo ${call} | awk '{ print $2; }'`
+    local file=`echo ${call} | awk '{ print $3; }'`; file=`basename ${file}`
 
-    printf "\nERROR [%s > %s]: %s.\n" "$file" "$fun" "$1" >&2
+    printf "\nERROR [%s > %s]: %s.\n" "$file" "$func" "$1" >&2
     if [ "x$2" != "x" ]; then
         (
             printf "\nBASH_SOURCE : $BASH_SOURCE\n"
@@ -137,7 +141,7 @@ function startDaemon_java {
     fi
 
     echo "Starting $DAEMON..."
-    local LOG_PREFIX="$LOG_DIR/`echo ${DAEMON} | tr " " "_"`"
+    local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
     if [ "${DEBUG}" -ne 1 ]; then
         nohup java $param $JRUN $arg > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
         echo $! > ${PID_FILE}
@@ -169,7 +173,7 @@ function startDaemon_node {
     fi
 
     echo "Starting $DAEMON..."
-    local LOG_PREFIX="$LOG_DIR/`echo ${DAEMON} | tr " " "_"`"
+    local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
     if [ ${DEBUG} -ne 1 ]; then
         nohup node $param "$NODE_FILE" $arg > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
         echo $! > ${PID_FILE}
@@ -232,6 +236,7 @@ function version_gt() { test "$(echo "$@" | tr " " "\n" | sort -g | tail -n 1)" 
 
 function __getLatestRelease {
     local cache="${xdl_tmp}/release.json"
+    local upgrade=${1:0}
 
     if [ -f "${cache}" ]; then
         local now=`date +%s`
@@ -261,7 +266,9 @@ function __getLatestRelease {
         echo ${rURL}
         echo ${dURL}
 
-##        wget -q -O - "${dURL}" | bunzip2 -c
+        if [ "${upgrade}" -eq 1 ]; then
+            wget -q -O - "${dURL}" | bunzip2 -c ## > ${xdl_install_path}
+        fi
     else
         echo "Already up to date"
     fi
@@ -395,6 +402,9 @@ function __runDaemonCommand {
     esac
 }
 
+# Going home
+cd ${workingdir}
+
 # Testing tmp access
 mkdir -p ${xdl_tmp} || error "TMP is not writable: can't write to ${xdl_tmp}" 2
 
@@ -428,11 +438,11 @@ case "${first}" in
     ;;
 
     "update")
-        __getLatestRelease $@
+        __getLatestRelease
     ;;
 
     "upgrade")
-        __getLatestRelease $@
+        __getLatestRelease 1
     ;;
 
     "version")
