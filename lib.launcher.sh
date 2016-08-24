@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
 
-###### Debug + Error ${jar}rting #######################################################################
+: ${debug=0}
+: ${verbose=0}
+: ${this_script="$0"}
+
+: ${xdl_tmp="/tmp/launcher.sh"}
+: ${xdl_conf="sample.ini"}
+
+xdl_home="https://github.com/amentain/launcher.sh"
+xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
+xdl_latest_release_cacheTime=$(( 24 * 60 * 60 ))
+xdl_version="1.0"
+
+###### Debug + Error reporting ###########################################################################
 function error {
     local cal=`caller 0 | head -n 1`
-    local fun=`echo $cal | awk '{ print $2; }'`
-    local file=`echo $cal | awk '{ print $3; }'`; file=`basename $file`
+    local fun=`echo ${cal} | awk '{ print $2; }'`
+    local file=`echo ${cal} | awk '{ print $3; }'`; file=`basename ${file}`
 
     printf "\nERROR [%s > %s]: %s.\n" "$file" "$fun" "$1" >&2
     if [ "x$2" != "x" ]; then
@@ -25,11 +37,46 @@ function debug {
             cmd="$cmd \"$1\""
             shift
         done
-        eval $cmd
+        eval ${cmd}
     fi
 }
 
-###### Daemon start & stop #######################################################################
+###### INI #############################################################################################
+function __ini_get()
+{
+    local inifile="$1"
+    local prefix="$2"
+
+    while IFS='= ' read var val
+    do
+        if [[ ${var} == \[*] ]]
+        then
+            section=`echo "$var" | tr -d "[] "`
+        elif [[ "${val}" ]]
+        then
+            if [ $(echo "${var}" | grep -oE '[#;]+' | wc -l) -eq 0 ]; then
+                eval ${prefix}${section}_${var}="${val}"
+            fi
+        fi
+    done < ${inifile}
+}
+
+function __ini_get_sections
+{
+    local inifile="$1"
+    local prefix="$2"
+
+    while IFS='= ' read var val
+    do
+        if [[ ${var} == \[*] ]]
+        then
+            section=`echo "$var" | tr -d "[] "`
+            echo ${prefix}${section}
+        fi
+    done < ${inifile}
+}
+
+###### Daemon start & stop ###############################################################################
 function __findJAR {
     local jar="$1"
     local location
@@ -45,7 +92,7 @@ function __getPID {
     echo "/tmp/`echo $1 | tr " " "_"`.pid"
 }
 
-###### Daemon start & stop #######################################################################
+###### Daemon start & stop ###############################################################################
 function check_alive {
     local PID_FILE="$1"
     if [ "xx$PID_FILE" = "xx" ]; then
@@ -75,7 +122,7 @@ function startDaemon_java {
         error "no JRUN" 1
     fi
 
-    if [ $(echo $JRUN | grep .jar | wc -l) -gt 0 ]; then
+    if [ $(echo ${JRUN} | grep .jar | wc -l) -gt 0 ]; then
         # jar mode
         if ! [ -f "$JRUN" ]; then
             error "Can't find JAR_FILE: ${JAR_FILE}" 1
@@ -109,7 +156,7 @@ function startDaemon_node {
         error "no DAEMON" 1
     fi
     if [ "xx$NODE_FILE" = "xx" ]; then
-        error "no JAR_FILE" 1
+        error "no NODE_FILE" 1
     fi
     if ! [ -f "$NODE_FILE" ]; then
         error "Can't find NODE_FILE: $NODE_FILE" 1
@@ -178,3 +225,245 @@ function stopDaemon {
     fi
     return 1
 }
+
+###### Updated ###########################################################################################
+
+function version_gt() { test "$(echo "$@" | tr " " "\n" | sort -g | tail -n 1)" != "$1"; }
+
+function __getLatestRelease {
+    local cache="${xdl_tmp}/release.json"
+
+    if [ -f "${cache}" ]; then
+        local now=`date +%s`
+        local cacheTime=`stat -f '%Sm' -t '%s' "${cache}"`
+        if [ $(($now - $cacheTime)) -gt ${xdl_latest_release_cacheTime} ]; then
+            rm -f "${cache}"
+        fi
+    fi
+
+    if ! [ -f "${cache}" ]; then
+        wget -q -O "${cache}" "${xdl_latest_release}" || error "Can't update sorry" 1
+        touch "${cache}" # set current date
+    fi
+
+    local rName=$(cat ${cache} | grep -F '"name":' | head -n1 | awk -F':' '{ print $2; }' | xargs | sed 's/,//g')
+    local rTagName=$(cat ${cache} | grep -F '"tag_name":' | awk -F':' '{ print $2; }' | sed -E 's/[," ]//g')
+    local rDescribe=$(cat ${cache} | grep -F '"body":' | awk -F':' '{ print $2; }' | xargs)
+    local rURL=$(cat ${cache} | grep -F '"html_url":' | head -n1 | grep -oE 'http[^"]+')
+    local dURL=$(cat ${cache} | grep -F '"browser_download_url":' | head -n1 | grep -oE 'http[^"]+')
+
+    if version_gt ${xdl_version} ${rTagName}; then
+        echo "New Release found!"
+        echo
+        printf "[%s] %s\n" "$rTagName" "$rName"
+        echo -e ${rDescribe}
+        echo
+        echo ${rURL}
+        echo ${dURL}
+
+##        wget -q -O - "${dURL}" | bunzip2 -c
+    else
+        echo "Already up to date"
+    fi
+
+}
+
+###### Daemon helper #####################################################################################
+function __getAvailableDaemons {
+
+    local available_daemons=""
+    for d in `__ini_get_sections "${xdl_conf}"`
+    do
+        local enabled=1
+        local if_exists=""
+        eval if_exists=\${xdml_${d}_enable_if_exist}
+
+        if [ "xx${if_exists}" != "xx" ]; then
+            if ! [ -e "${if_exists}" ]; then
+                local enabled=0
+            fi
+        fi
+
+        if [ ${enabled} -eq 1 ]; then
+            available_daemons="${available_daemons} ${d}"
+        fi
+    done
+
+    echo ${available_daemons}
+}
+
+function __checkDaemon {
+    for d in `__getAvailableDaemons`
+    do
+        if [ ${d} == "" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+function __getDaemonParams() {
+    local d=$1
+    eval artifact=\${xdml_${d}_artifact}
+    eval daemon=\${xdml_${d}_daemon}
+    eval params=\${xdml_${d}_params}
+    eval args=\${xdml_${d}_args}
+}
+
+function __showVersion {
+    echo "Xeenon's Daemon Launcher v${xdl_version}"
+    echo
+}
+
+function __showUsage {
+    local dmCount=${dmCount:-0}
+
+    __showVersion
+
+    if [ ${dmCount} -eq 0 ]; then
+        echo "no daemons available"
+        echo "or no daemons configured"
+        echo "${xdl_home}"
+        echo
+        exit 1
+    fi
+
+    local cmd="${this_script}"
+    if [ ${dmCount} -gt 1 ]; then
+        cmd="${cmd} #daemon#"
+        printf "daemons:\n   ${dmList}\n"
+        printf "   or all\n"
+    else
+        printf "daemon: ${dmList}\n"
+    fi
+
+    echo
+    echo "Usage:"
+    echo "${cmd} start       - to start daemon in background"
+    echo "${cmd} stop        - to stop daemon"
+    echo "${cmd} restart     - to stop and start daemon"
+    echo
+    echo "${cmd} run         - to start daemon in the current console"
+    echo "${cmd} stop force  - to kill daemon"
+    echo
+    echo "Misc:"
+    echo "${this_script} update  - checks for launcher updates"
+    echo "${this_script} upgrade - upgrade current launcher installation"
+    echo "${this_script} version - show version"
+
+    exit 1
+}
+
+###### Command runner ####################################################################################
+function __runDaemonCommand {
+    local command_name=$1
+    local command_sub_name=$2
+
+    case "$command_name" in
+        start|run)
+            debug=0
+            if [ "$command_name" == "run" ]; then
+                debug=1
+            fi
+            startDaemon_java "$daemon" "$artifact" "$debug"
+            return $?
+        ;;
+
+        stop)
+            force=0
+            if [ "command_sub_name" == "force" ]; then
+                force=1
+            fi
+
+            stopDaemon "$daemon" "$force"
+        ;;
+
+        restart)
+            force=0
+            if [ "command_sub_name" == "force" ]; then
+                force=1
+            fi
+
+            stopDaemon "$daemon" "$force"
+            startDaemon_java "$daemon" "$artifact" "0"
+            return $?
+        ;;
+
+        *)
+            __showUsage
+        ;;
+    esac
+}
+
+# Testing tmp access
+mkdir -p ${xdl_tmp} || error "TMP is not writable: can't write to ${xdl_tmp}" 2
+
+# Check & parse ini
+dmList=""
+dmCount=0
+if [ -f "${xdl_conf}" ]; then
+    __ini_get "${xdl_conf}" "xdml_"
+    dmList=`__getAvailableDaemons`
+    dmCount=$(echo ${dmList} | wc -w)
+fi
+
+# Check input params
+if [ "xx$1" == "xx" ]; then
+    __showUsage
+fi
+
+first=$1; shift
+case "${first}" in
+    "all")
+        # Check available daemons
+        if [ ${dmCount} -eq 0 ]; then
+            __showUsage
+        fi
+
+        for d in ${dmList}
+        do
+            __getDaemonParams ${d}
+            __runDaemonCommand $@
+        done
+    ;;
+
+    "update")
+        __getLatestRelease $@
+    ;;
+
+    "upgrade")
+        __getLatestRelease $@
+    ;;
+
+    "version")
+        __showVersion
+    ;;
+
+    "install")
+        echo "Not implemented"
+        exit 1
+    ;;
+
+    *)
+        # Check available daemons
+        if [ ${dmCount} -eq 0 ]; then
+            __showUsage
+        fi
+
+        if [ ${dmCount} -gt 1 ];
+        then
+            __getDaemonParams ${dmList}
+            __runDaemonCommand "${first}" $@
+        else
+
+            d=`__checkDaemon ${first}`
+            if [ $? -ne 0 ]; then
+                printf "no daemon \"${first}\" found\n\n\n"
+                __showUsage
+            fi
+
+            __getDaemonParams ${first}
+            __runDaemonCommand $@
+        fi
+    ;;
+esac
