@@ -251,6 +251,7 @@ function __getLatestRelease {
 
     if ! [ -f "${cache}" ]; then
         wget -q -O "${cache}" "${xdl_latest_release}" || error "Can't update sorry" 1
+        chmod 777 "${cache}" # global writable
         touch "${cache}" # set current date
     fi
 
@@ -416,6 +417,7 @@ cd ${workingdir}
 
 # Testing tmp access
 mkdir -p ${xdl_tmp} || error "TMP is not writable: can't write to ${xdl_tmp}" 2
+chmod 777 ${xdl_tmp} # global writable
 
 # Check & parse ini
 dmList=""
