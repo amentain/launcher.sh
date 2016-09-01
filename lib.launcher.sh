@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.2.1"
+xdl_version="0.2.2"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -129,7 +129,7 @@ function startDaemon_java {
     if [ $(echo ${JRUN} | grep .jar | wc -l) -gt 0 ]; then
         # jar mode
         if ! [ -f "$JRUN" ]; then
-            error "Can't find JAR_FILE: ${JAR_FILE}" 1
+            error "Can't find JAR: ${JRUN}" 1
         fi
         JRUN="-jar $JRUN"
     fi
@@ -314,16 +314,16 @@ function __checkDaemon {
 
 function __getDaemonParams() {
     local d=$1
+    daemon=${d}
     eval artifact=\${xdml_${d}_artifact}
     eval node_file=\${xdml_${d}_node_file}
-    eval daemon=\${xdml_${d}_daemon}
     eval params=\${xdml_${d}_params}
     eval args=\${xdml_${d}_args}
 
-    if [ "xx${artifact}" == "xx" ]; then
-        runner="startDaemon_java \"${daemon}\" \"${artifact}\"";
+    if [ -z "${artifact}" ]; then
+        runner="startDaemon_node ${daemon} ${node_file}";
     else
-        runner="startDaemon_node \"${daemon}\" \"${node_file}\"";
+        runner="startDaemon_java ${daemon} ${artifact}";
     fi
 }
 
@@ -425,13 +425,16 @@ dmCount=0
 if [ -f "${xdl_conf}" ]; then
     __ini_get "${xdl_conf}" "xdml_"
     dmList=`__getAvailableDaemons`
-    dmCount=$(echo ${dmList} | wc -w)
+    dmCount=$(( `echo ${dmList} | wc -w` * 1 ))
 fi
 
 # Check input params
 if [ "xx$1" == "xx" ]; then
     __showUsage
 fi
+
+# home sweet home
+cd ${workingdir}
 
 first=$1; shift
 case "${first}" in
@@ -471,14 +474,13 @@ case "${first}" in
             __showUsage
         fi
 
-        if [ ${dmCount} -gt 1 ];
+        if [ ${dmCount} -eq 1 ];
         then
             __getDaemonParams ${dmList}
             __runDaemonCommand "${first}" $@
         else
 
-            d=`__checkDaemon ${first}`
-            if [ $? -ne 0 ]; then
+            if __checkDaemon ${first}; then
                 printf "no daemon \"${first}\" found\n\n\n"
                 __showUsage
             fi
