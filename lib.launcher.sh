@@ -312,9 +312,16 @@ function __checkDaemon {
 function __getDaemonParams() {
     local d=$1
     eval artifact=\${xdml_${d}_artifact}
+    eval node_file=\${xdml_${d}_node_file}
     eval daemon=\${xdml_${d}_daemon}
     eval params=\${xdml_${d}_params}
     eval args=\${xdml_${d}_args}
+
+    if [ "xx${artifact}" == "xx" ]; then
+        runner="startDaemon_java \"${daemon}\" \"${artifact}\"";
+    else
+        runner="startDaemon_node \"${daemon}\" \"${node_file}\"";
+    fi
 }
 
 function __showVersion {
@@ -372,13 +379,13 @@ function __runDaemonCommand {
             if [ "$command_name" == "run" ]; then
                 debug=1
             fi
-            startDaemon_java "$daemon" "$artifact" "$debug"
+            ${runner} "$debug"
             return $?
         ;;
 
         stop)
             force=0
-            if [ "command_sub_name" == "force" ]; then
+            if [ "${command_sub_name}" == "force" ]; then
                 force=1
             fi
 
@@ -392,7 +399,7 @@ function __runDaemonCommand {
             fi
 
             stopDaemon "$daemon" "$force"
-            startDaemon_java "$daemon" "$artifact" "0"
+            ${runner} "0"
             return $?
         ;;
 
