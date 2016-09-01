@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.2"
+xdl_version="0.2.1"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -236,7 +236,10 @@ function version_gt() { test "$(echo "$@" | tr " " "\n" | sort -g | tail -n 1)" 
 
 function __getLatestRelease {
     local cache="${xdl_tmp}/release.json"
-    local upgrade=${1:0}
+    local upgrade=$1
+    if [ "${upgrade}" != "1" ]; then
+        upgrade=0
+    fi
 
     if [ -f "${cache}" ]; then
         local now=`date +%s`
@@ -272,7 +275,6 @@ function __getLatestRelease {
     else
         echo "Already up to date"
     fi
-
 }
 
 ###### Daemon helper #####################################################################################
