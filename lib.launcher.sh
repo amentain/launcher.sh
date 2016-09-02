@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.2.2"
+xdl_version="0.2.3"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -143,12 +143,12 @@ function startDaemon_java {
     echo "Starting $DAEMON..."
     local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
     if [ "${DEBUG}" -ne 1 ]; then
-        nohup java $param $JRUN $arg > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
+        nohup java $params $JRUN $args > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
         echo $! > ${PID_FILE}
         echo "Done [$!], see $DAEMON log at ${LOG_PREFIX}-*.log"
     else
-        echo java $param $JRUN $arg
-        java $param $JRUN $arg || return $?
+        echo java $params $JRUN $args
+        java $params $JRUN $args || return $?
     fi
 }
 
@@ -175,11 +175,11 @@ function startDaemon_node {
     echo "Starting $DAEMON..."
     local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
     if [ ${DEBUG} -ne 1 ]; then
-        nohup node $param "$NODE_FILE" $arg > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
+        nohup node $params "$NODE_FILE" $args > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
         echo $! > ${PID_FILE}
         echo "Done [$!], see $DAEMON log at ${LOG_PREFIX}-*.log"
     else
-        node $param "$NODE_FILE" $arg || return $?
+        node $params "$NODE_FILE" $args || return $?
     fi
 }
 
