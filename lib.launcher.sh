@@ -179,6 +179,7 @@ function startDaemon_node {
         echo $! > ${PID_FILE}
         echo "Done [$!], see $DAEMON log at ${LOG_PREFIX}-*.log"
     else
+        echo node $params "$NODE_FILE" $args
         node $params "$NODE_FILE" $args || return $?
     fi
 }
