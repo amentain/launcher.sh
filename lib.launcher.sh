@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.2.3"
+xdl_version="0.3.0"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -184,6 +184,38 @@ function startDaemon_node {
     fi
 }
 
+function startDaemon_plain {
+    local DAEMON="$1"
+    local DAEMON_FILE="$2"
+    local DEBUG="${3:0}"
+    if [ "xx$DAEMON" = "xx" ]; then
+        error "no DAEMON" 1
+    fi
+    if [ "xx$DAEMON_FILE" = "xx" ]; then
+        error "no DAEMON_FILE" 1
+    fi
+    if ! [ -f "$DAEMON_FILE" ]; then
+        error "Can't find DAEMON_FILE: $DAEMON_FILE" 1
+    fi
+
+    local PID_FILE=`__getPID "$DAEMON"`
+    if check_alive "$PID_FILE" ; then
+        echo "$DAEMON is already running with PID `cat ${PID_FILE}`"
+        return 1
+    fi
+
+    echo "Starting $DAEMON..."
+    local LOG_PREFIX="$LOG_DIR/`echo ${DAEMON} | tr " " "_"`"
+    if [ ${DEBUG} -ne 1 ]; then
+        nohup ${DAEMON_FILE} ${params} ${args} > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
+        echo $! > ${PID_FILE}
+        echo "Done [$!], see $DAEMON log at ${LOG_PREFIX}-*.log"
+    else
+        echo ${DAEMON_FILE} $params $args || return $?
+        ${DAEMON_FILE} $params $args || return $?
+    fi
+}
+
 function stopDaemon {
     local DAEMON="$1"
     local FORCE="${2:0}"
@@ -318,11 +350,16 @@ function __getDaemonParams() {
     daemon=${d}
     eval artifact=\${xdml_${d}_artifact}
     eval node_file=\${xdml_${d}_node_file}
+    eval daemon_file=\${xdml_${d}_daemon_file}
     eval params=\${xdml_${d}_params}
     eval args=\${xdml_${d}_args}
 
     if [ -z "${artifact}" ]; then
-        runner="startDaemon_node ${daemon} ${node_file}";
+        if [ -z "${node_file}" ]; then
+            runner="startDaemon_node ${daemon} ${node_file}";
+        else
+            runner="startDaemon_plain ${daemon} ${daemon_file}";
+        fi
     else
         runner="startDaemon_java ${daemon} ${artifact}";
     fi
