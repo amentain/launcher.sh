@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.3.5"
+xdl_version="0.3.6"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -276,8 +276,8 @@ function rotateLogs {
     mv -f "${LOG_PREFIX}-output.log" "${LOG_PREFIX}-output.${dtNow}.log"
     mv -f "${LOG_PREFIX}-error.log" "${LOG_PREFIX}-error.${dtNow}.log"
 
-    rm -f `ls ${LOG_PREFIX}-output.*.log | sort -g | sed 1,5d`
-    rm -f `ls ${LOG_PREFIX}-error.*.log  | sort -g | sed 1,5d`
+    rm -f `ls ${LOG_PREFIX}-output.*.log | sort -r | sed 1,5d`
+    rm -f `ls ${LOG_PREFIX}-error.*.log  | sort -r | sed 1,5d`
 }
 
 ###### Updated ###########################################################################################
