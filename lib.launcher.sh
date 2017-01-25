@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.3.3"
+xdl_version="0.3.4"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -143,12 +143,7 @@ function startDaemon_java {
     echo "Starting $DAEMON..."
     local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
     if [ "${DEBUG}" -ne 1 ]; then
-        local dtNow=$(date +%F_%T)
-        mv -f "${LOG_PREFIX}-output.log" "${LOG_PREFIX}-output.${dtNow}.log"
-        mv -f "${LOG_PREFIX}-error.log" "${LOG_PREFIX}-error.${dtNow}.log"
-
-        rm -f `ls ${LOG_PREFIX}-output.*.log | sort | sed 1,5d`
-        rm -f `ls ${LOG_PREFIX}-error.*.log  | sort | sed 1,5d`
+        rotateLogs "${LOG_PREFIX}"
 
         nohup java $params $JRUN $args > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
         echo $! > ${PID_FILE}
@@ -182,6 +177,8 @@ function startDaemon_node {
     echo "Starting $DAEMON..."
     local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
     if [ ${DEBUG} -ne 1 ]; then
+        rotateLogs "${LOG_PREFIX}"
+
         nohup node $params "$NODE_FILE" $args > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
         echo $! > ${PID_FILE}
         echo "Done [$!], see $DAEMON log at ${LOG_PREFIX}-*.log"
@@ -214,6 +211,8 @@ function startDaemon_plain {
     echo "Starting $DAEMON..."
     local LOG_PREFIX="$LOG_DIR/`echo ${DAEMON} | tr " " "_"`"
     if [ ${DEBUG} -ne 1 ]; then
+        rotateLogs "${LOG_PREFIX}"
+
         nohup ${DAEMON_FILE} ${params} ${args} > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
         echo $! > ${PID_FILE}
         echo "Done [$!], see $DAEMON log at ${LOG_PREFIX}-*.log"
@@ -268,6 +267,17 @@ function stopDaemon {
         echo "$PID_FILE not found, nothing to stop."
     fi
     return 1
+}
+
+function rotateLogs {
+    local LOG_PREFIX=$1
+    local dtNow=$(date +%F_%T)
+
+    mv -f "${LOG_PREFIX}-output.log" "${LOG_PREFIX}-output.${dtNow}.log"
+    mv -f "${LOG_PREFIX}-error.log" "${LOG_PREFIX}-error.${dtNow}.log"
+
+    rm -f `ls ${LOG_PREFIX}-output.*.log | sort | sed 1,5d`
+    rm -f `ls ${LOG_PREFIX}-error.*.log  | sort | sed 1,5d`
 }
 
 ###### Updated ###########################################################################################
