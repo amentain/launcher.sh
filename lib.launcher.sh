@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.3.2"
+xdl_version="0.3.3"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -363,9 +363,9 @@ function __getDaemonParams() {
 
     if [ -z "${artifact}" ]; then
         if [ -z "${node_file}" ]; then
-            runner="startDaemon_plain ${daemon} ${node_file}";
+            runner="startDaemon_plain ${daemon} ${daemon_file}";
         else
-            runner="startDaemon_node ${daemon} ${daemon_file}";
+            runner="startDaemon_node ${daemon} ${node_file}";
         fi
     else
         runner="startDaemon_java ${daemon} ${artifact}";
