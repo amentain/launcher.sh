@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.3.0"
+xdl_version="0.3.1"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -143,6 +143,13 @@ function startDaemon_java {
     echo "Starting $DAEMON..."
     local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
     if [ "${DEBUG}" -ne 1 ]; then
+        local dtNow=$(date +%F_%T)
+        mv -f "${LOG_PREFIX}-output.log" "${LOG_PREFIX}-output.${dtNow}.log"
+        mv -f "${LOG_PREFIX}-error.log" "${LOG_PREFIX}-error.${dtNow}.log"
+
+        rm -f `ls ${LOG_PREFIX}-output.*.log | sort | sed 1,5d`
+        rm -f `ls ${LOG_PREFIX}-error.*.log  | sort | sed 1,5d`
+
         nohup java $params $JRUN $args > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
         echo $! > ${PID_FILE}
         echo "Done [$!], see $DAEMON log at ${LOG_PREFIX}-*.log"
