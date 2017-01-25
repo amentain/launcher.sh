@@ -363,9 +363,9 @@ function __getDaemonParams() {
 
     if [ -z "${artifact}" ]; then
         if [ -z "${node_file}" ]; then
-            runner="startDaemon_node ${daemon} ${node_file}";
+            runner="startDaemon_plain ${daemon} ${node_file}";
         else
-            runner="startDaemon_plain ${daemon} ${daemon_file}";
+            runner="startDaemon_node ${daemon} ${daemon_file}";
         fi
     else
         runner="startDaemon_java ${daemon} ${artifact}";
