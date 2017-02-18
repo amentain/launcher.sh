@@ -12,7 +12,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.3.6"
+xdl_version="0.3.7"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -209,7 +209,7 @@ function startDaemon_plain {
     fi
 
     echo "Starting $DAEMON..."
-    local LOG_PREFIX="$LOG_DIR/`echo ${DAEMON} | tr " " "_"`"
+    local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
     if [ ${DEBUG} -ne 1 ]; then
         rotateLogs "${LOG_PREFIX}"
 
