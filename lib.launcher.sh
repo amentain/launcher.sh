@@ -307,7 +307,7 @@ function __getLatestRelease {
 
     if ! [ -f "${cache}" ]; then
         wget -q -O "${cache}" "${xdl_latest_release}" || error "Can't update sorry" 1
-        chmod 777 "${cache}" # global writable
+        chmod 666 "${cache}" # global writable
         touch "${cache}" # set current date
     fi
 
