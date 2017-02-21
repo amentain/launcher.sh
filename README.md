@@ -4,3 +4,6 @@
 ## Update / upgrade deps
     wget
     bunzip2
+    
+## Change owner deps
+    sudo
