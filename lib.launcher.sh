@@ -287,8 +287,14 @@ function version_gt() { test "$(echo "$@" | tr " " "\n" | sort -g | tail -n 1)" 
 function __getLatestRelease {
     local cache="${xdl_tmp}/release.json"
     local upgrade=$1
+    local force=$2
+
     if [ "${upgrade}" != "1" ]; then
         upgrade=0
+    fi
+
+    if [ "${force}" = "force" ]; then
+        rm -f "${cache}"
     fi
 
     if [ -f "${cache}" ]; then
@@ -507,11 +513,11 @@ case "${first}" in
     ;;
 
     "update")
-        __getLatestRelease
+        __getLatestRelease 0 $@
     ;;
 
     "upgrade")
-        __getLatestRelease 1
+        __getLatestRelease 1 $@
     ;;
 
     "version")
