@@ -9,10 +9,12 @@
 : ${xdl_log_dir="${workingdir}/logs"}
 : ${xdl_conf="launcher.sample.ini"}
 
+: ${xdl_api_mode=0}
+
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.3.7"
+xdl_version="0.4.0"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -375,6 +377,7 @@ function __checkDaemon {
 function __getDaemonParams() {
     local d=$1
     daemon=${d}
+    eval owner=\${xdml_${d}_owner}
     eval artifact=\${xdml_${d}_artifact}
     eval node_file=\${xdml_${d}_node_file}
     eval daemon_file=\${xdml_${d}_daemon_file}
@@ -440,6 +443,7 @@ function __showUsage {
 function __runDaemonCommand {
     local command_name=$1
     local command_sub_name=$2
+    local run_cmd=""
 
     case "$command_name" in
         start|run)
@@ -447,8 +451,7 @@ function __runDaemonCommand {
             if [ "$command_name" == "run" ]; then
                 debug=1
             fi
-            ${runner} "$debug"
-            return $?
+            run_cmd="${runner} \"$debug\""
         ;;
 
         stop)
@@ -457,7 +460,7 @@ function __runDaemonCommand {
                 force=1
             fi
 
-            stopDaemon "$daemon" "$force"
+            run_cmd="stopDaemon \"$daemon\" \"$force\""
         ;;
 
         restart)
@@ -466,92 +469,117 @@ function __runDaemonCommand {
                 force=1
             fi
 
-            stopDaemon "$daemon" "$force"
-            ${runner} "0"
-            return $?
+            run_cmd="stopDaemon \"$daemon\" \"$force\" ; ${runner} \"$debug\""
         ;;
 
         *)
             __showUsage
+            return 1
         ;;
     esac
+
+    if [ "xx${owner}" = "xx" -o $(id -un) = "${owner}" ];
+    then
+        ${run_cmd}
+        return $?
+    else
+        printf "Using sudo -u ${owner}...\n"
+        sudo -H -u ${owner} bash <<RUN
+debug="${debug}"
+verbose="${verbose}"
+this_script="${this_script}"
+workingdir="${workingdir}"
+
+xdl_tmp="${xdl_tmp}"
+xdl_log_dir="${xdl_log_dir}"
+xdl_conf="${xdl_conf}"
+
+xdl_api_mode=1
+
+. ${xdl_install_path}
+
+${run_cmd}
+exit \$?
+RUN
+        return $?
+    fi
 }
-
-# Going home
-cd ${workingdir}
-
-# Testing tmp access
-mkdir -p ${xdl_tmp} || error "TMP is not writable: can't write to ${xdl_tmp}" 2
-chmod 777 ${xdl_tmp} # global writable
-
-# Check & parse ini
-dmList=""
-dmCount=0
-if [ -f "${xdl_conf}" ]; then
-    __ini_get "${xdl_conf}" "xdml_"
-    dmList=`__getAvailableDaemons`
-    dmCount=$(( `echo ${dmList} | wc -w` * 1 ))
-fi
-
-# Check input params
-if [ "xx$1" == "xx" ]; then
-    __showUsage
-fi
 
 # home sweet home
 cd ${workingdir}
 
-first=$1; shift
-case "${first}" in
-    "all")
-        # Check available daemons
-        if [ ${dmCount} -eq 0 ]; then
-            __showUsage
-        fi
+# api or not api?
+if [ ${xdl_api_mode} -ne 1 ]; then
+    # Testing tmp access
+    mkdir -p ${xdl_tmp} || error "TMP is not writable: can't write to ${xdl_tmp}" 2
+    chmod 777 ${xdl_tmp} # global writable
 
-        for d in ${dmList}
-        do
-            __getDaemonParams ${d}
-            __runDaemonCommand $@
-        done
-    ;;
+    # Check & parse ini
+    dmList=""
+    dmCount=0
+    if [ -f "${xdl_conf}" ]; then
+        __ini_get "${xdl_conf}" "xdml_"
+        dmList=`__getAvailableDaemons`
+        dmCount=$(( `echo ${dmList} | wc -w` * 1 ))
+    fi
 
-    "update")
-        __getLatestRelease 0 $@
-    ;;
+    # Check input params
+    if [ "xx$1" == "xx" ]; then
+        __showUsage
+    fi
 
-    "upgrade")
-        __getLatestRelease 1 $@
-    ;;
-
-    "version")
-        __showVersion
-    ;;
-
-    "install")
-        echo "Not implemented"
-        exit 1
-    ;;
-
-    *)
-        # Check available daemons
-        if [ ${dmCount} -eq 0 ]; then
-            __showUsage
-        fi
-
-        if [ ${dmCount} -eq 1 ];
-        then
-            __getDaemonParams ${dmList}
-            __runDaemonCommand "${first}" $@
-        else
-
-            if __checkDaemon ${first}; then
-                printf "no daemon \"${first}\" found\n\n\n"
+    first=$1; shift
+    case "${first}" in
+        "all")
+            # Check available daemons
+            if [ ${dmCount} -eq 0 ]; then
                 __showUsage
             fi
 
-            __getDaemonParams ${first}
-            __runDaemonCommand $@
-        fi
-    ;;
-esac
+            for d in ${dmList}
+            do
+                __getDaemonParams ${d}
+                __runDaemonCommand $@
+            done
+        ;;
+
+        "update")
+            __getLatestRelease 0 $@
+        ;;
+
+        "upgrade")
+            __getLatestRelease 1 $@
+        ;;
+
+        "version")
+            __showVersion
+        ;;
+
+        "install")
+            echo "Not implemented"
+            exit 1
+        ;;
+
+        *)
+            # Check available daemons
+            if [ ${dmCount} -eq 0 ]; then
+                __showUsage
+            fi
+
+            if [ ${dmCount} -eq 1 ];
+            then
+                __getDaemonParams ${dmList}
+                __runDaemonCommand "${first}" $@
+            else
+
+                if __checkDaemon ${first}; then
+                    printf "no daemon \"${first}\" found\n\n\n"
+                    __showUsage
+                fi
+
+                __getDaemonParams ${first}
+                __runDaemonCommand $@
+            fi
+        ;;
+    esac
+fi
