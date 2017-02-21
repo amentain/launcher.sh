@@ -273,11 +273,15 @@ function rotateLogs {
     local LOG_PREFIX=$1
     local dtNow=$(date +%F_%T)
 
-    mv -f "${LOG_PREFIX}-output.log" "${LOG_PREFIX}-output.${dtNow}.log"
-    mv -f "${LOG_PREFIX}-error.log" "${LOG_PREFIX}-error.${dtNow}.log"
+    if [ -f "${LOG_PREFIX}-output.log" ]; then
+        mv -f "${LOG_PREFIX}-output.log" "${LOG_PREFIX}-output.${dtNow}.log"
+        rm -f `ls ${LOG_PREFIX}-output.*.log | sort -r | sed 1,5d`
+    fi
 
-    rm -f `ls ${LOG_PREFIX}-output.*.log | sort -r | sed 1,5d`
-    rm -f `ls ${LOG_PREFIX}-error.*.log  | sort -r | sed 1,5d`
+    if [ -f "${LOG_PREFIX}-error.log" ]; then
+        mv -f "${LOG_PREFIX}-error.log" "${LOG_PREFIX}-error.${dtNow}.log"
+        rm -f `ls ${LOG_PREFIX}-error.*.log  | sort -r | sed 1,5d`
+    fi
 }
 
 ###### Updated ###########################################################################################
