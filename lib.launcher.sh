@@ -14,7 +14,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.4.0"
+xdl_version="0.4.1"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -95,7 +95,7 @@ function __findJAR {
 }
 
 function __getPID {
-    echo "/tmp/`echo $1 | tr " " "_"`.pid"
+    echo "/tmp/`echo $1 | tr -d '"' | tr ' ' '_'`.pid"
 }
 
 ###### Daemon start & stop ###############################################################################
@@ -120,7 +120,7 @@ function check_alive {
 function startDaemon_java {
     local DAEMON="$1"
     local JRUN="$2"
-    local DEBUG="${3:0}"
+    local DEBUG=${3:0}
     if [ "xx$DAEMON" = "xx" ]; then
         error "no DAEMON" 1
     fi
@@ -144,7 +144,7 @@ function startDaemon_java {
 
     echo "Starting $DAEMON..."
     local LOG_PREFIX="${xdl_log_dir}/`echo ${DAEMON} | tr " " "_"`"
-    if [ "${DEBUG}" -ne 1 ]; then
+    if [ ${DEBUG} -ne 1 ]; then
         rotateLogs "${LOG_PREFIX}"
 
         nohup java $params $JRUN $args > "${LOG_PREFIX}-output.log" 2> "${LOG_PREFIX}-error.log" &
@@ -159,7 +159,7 @@ function startDaemon_java {
 function startDaemon_node {
     local DAEMON="$1"
     local NODE_FILE="$2"
-    local DEBUG="${3:0}"
+    local DEBUG=${3:0}
     if [ "xx$DAEMON" = "xx" ]; then
         error "no DAEMON" 1
     fi
@@ -193,7 +193,7 @@ function startDaemon_node {
 function startDaemon_plain {
     local DAEMON="$1"
     local DAEMON_FILE="$2"
-    local DEBUG="${3:0}"
+    local DEBUG=${3:0}
     if [ "xx$DAEMON" = "xx" ]; then
         error "no DAEMON" 1
     fi
@@ -444,14 +444,14 @@ function __runDaemonCommand {
     local command_name=$1
     local command_sub_name=$2
     local run_cmd=""
+    local debug=0
 
     case "$command_name" in
         start|run)
-            debug=0
             if [ "$command_name" == "run" ]; then
                 debug=1
             fi
-            run_cmd="${runner} \"$debug\""
+            run_cmd="${runner} $debug"
         ;;
 
         stop)
@@ -469,7 +469,7 @@ function __runDaemonCommand {
                 force=1
             fi
 
-            run_cmd="stopDaemon \"$daemon\" \"$force\" ; ${runner} \"$debug\""
+            run_cmd="stopDaemon \"$daemon\" \"$force\" ; ${runner} $debug"
         ;;
 
         *)
@@ -569,7 +569,11 @@ if [ ${xdl_api_mode} -ne 1 ]; then
             if [ ${dmCount} -eq 1 ];
             then
                 __getDaemonParams ${dmList}
-                __runDaemonCommand "${first}" $@
+                if [ "${first}" == "${dmList}" ]; then
+                    __runDaemonCommand $@
+                else
+                    __runDaemonCommand "${first}" $@
+                fi
             else
 
                 if __checkDaemon ${first}; then
