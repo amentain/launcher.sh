@@ -288,7 +288,7 @@ function rotateLogs {
 
 ###### Updated ###########################################################################################
 
-function version_gt() { test "$(echo "$@" | tr " " "\n" | sort -g | tail -n 1)" != "$1"; }
+function version_gt { test "$(echo "$@" | tr " " "\n" | sort -g | tail -n 1)" != "$1"; }
 
 function __getLatestRelease {
     local cache="${xdl_tmp}/release.json"
@@ -305,7 +305,7 @@ function __getLatestRelease {
 
     if [ -f "${cache}" ]; then
         local now=`date +%s`
-        local cacheTime=`stat -f '%Sm' -t '%s' "${cache}"`
+        local cacheTime=`__getMTime "${cache}"`
         if [ $(($now - $cacheTime)) -gt ${xdl_latest_release_cacheTime} ]; then
             rm -f "${cache}"
         fi
@@ -337,6 +337,22 @@ function __getLatestRelease {
         fi
     else
         echo "Already up to date"
+    fi
+}
+
+function __getMTime {
+    local fName="${1}"
+
+    if [ ! -f "${fName}" ]; then
+        echo "Can't read file ${fName}" >&2
+        echo -1
+        exit 1
+    fi
+
+    if [ $(uname) = "FreeBSD" -o $(uname) = "Darwin" ]; then
+        stat -f '%Sm' -t '%s' "${fName}"
+    else
+        date +%s -r "${fName}"
     fi
 }
 
