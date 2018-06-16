@@ -14,7 +14,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.4.1"
+xdl_version="0.4.2"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -443,7 +443,8 @@ function __showUsage {
 function __runDaemonCommand {
     local command_name=$1
     local command_sub_name=$2
-    local run_cmd=""
+    local run_cmd_1=""
+    local run_cmd_2=""
     local debug=0
 
     case "$command_name" in
@@ -451,7 +452,7 @@ function __runDaemonCommand {
             if [ "$command_name" == "run" ]; then
                 debug=1
             fi
-            run_cmd="${runner} $debug"
+            run_cmd_1="${runner} $debug"
         ;;
 
         stop)
@@ -460,7 +461,7 @@ function __runDaemonCommand {
                 force=1
             fi
 
-            run_cmd="stopDaemon \"$daemon\" \"$force\""
+            run_cmd_1="stopDaemon \"$daemon\" \"$force\""
         ;;
 
         restart)
@@ -469,7 +470,8 @@ function __runDaemonCommand {
                 force=1
             fi
 
-            run_cmd="stopDaemon \"$daemon\" \"$force\" ; ${runner} $debug"
+            run_cmd_1="stopDaemon \"$daemon\" \"$force\""
+            run_cmd_2="${runner} $debug"
         ;;
 
         *)
@@ -480,7 +482,8 @@ function __runDaemonCommand {
 
     if [ "xx${owner}" = "xx" -o $(id -un) = "${owner}" ];
     then
-        ${run_cmd}
+        ${run_cmd_1}
+        ${run_cmd_2}
         return $?
     else
         printf "Using sudo -u ${owner}...\n"
@@ -498,7 +501,8 @@ xdl_api_mode=1
 
 . ${xdl_install_path}
 
-${run_cmd}
+${run_cmd_1}
+${run_cmd_2}
 exit \$?
 RUN
         return $?
