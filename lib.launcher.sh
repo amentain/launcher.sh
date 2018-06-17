@@ -14,7 +14,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.4.2"
+xdl_version="0.5.0"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -45,6 +45,29 @@ function debug {
         done
         eval ${cmd}
     fi
+}
+
+function bytes2human() {
+    # converts a byte count to a human readable format in IEC binary notation (base-1024), rounded to two decimal places for anything larger than a byte. switchable to padded format and base-1000 if desired.
+    local L_BYTES="${1:-0}"
+    local L_PAD="${2:-no}"
+    local L_BASE="${3:-1024}"
+    BYTESTOHUMAN_RESULT=$(awk -v bytes="${L_BYTES}" -v pad="${L_PAD}" -v base="${L_BASE}" 'function human(x, pad, base) {
+         if(base!=1024)base=1000
+         basesuf=(base==1024)?"iB":"B"
+
+         s="BKMGTEPYZ"
+         while (x>=base && length(s)>1)
+               {x/=base; s=substr(s,2)}
+         s=substr(s,1,1)
+
+         xf=(pad=="yes") ? ((s=="B")?"%5d   ":"%8.2f") : ((s=="B")?"%d":"%.2f")
+         s=(s!="B") ? (s basesuf) : ((pad=="no") ? s : ((basesuf=="iB")?(s "  "):(s " ")))
+
+         return sprintf( (xf " %s\n"), x, s)
+      }
+      BEGIN{print human(bytes, pad, base)}')
+    return $?
 }
 
 ###### INI #############################################################################################
@@ -224,6 +247,47 @@ function startDaemon_plain {
     fi
 }
 
+function statusDaemon {
+    local DAEMON=`echo $1 | sed 's/"//g'`
+    if [ "xx$DAEMON" = "xx" ]; then
+        error "no DAEMON" 1
+    fi
+
+    if [ "xx${XDL_STATUS_HEADER}" = "xx" ]; then
+        statusHeader
+    fi
+
+    local lenDif=$(( ${XDL_STATUS_MAXLEN} - ${#DAEMON} ))
+    local PID_FILE=`__getPID "$DAEMON"`
+    if check_alive "$PID_FILE"; then
+        local pCPU=$(ps -o "%cpu" -p `cat ${PID_FILE}` | tail -n1)
+        local pMEM=$(ps -o "%mem" -p `cat ${PID_FILE}` | tail -n1)
+        local pRSS=$(ps -o "rss"  -p `cat ${PID_FILE}` | tail -n1)
+
+        bytes2human $((${pRSS} * 1024))
+        printf "%s%${lenDif}s\t%d\t%s\t%s\t%s\n" "${DAEMON}" " " "`cat ${PID_FILE}`" "${pCPU}" "${pMEM}" "${BYTESTOHUMAN_RESULT}"
+    else
+        printf "%s%${lenDif}s\t%s\n" "${DAEMON}" " " "--"
+    fi
+    return 1
+}
+
+function statusHeader {
+    XDL_STATUS_HEADER=yes
+
+    local ttl="DAEMON"
+    local maxLen=`__getMaxDaemonLength`
+    if [ ${maxLen} -lt ${#ttl} ]; then
+        maxLen=${#ttl}
+    fi
+    maxLen=$(( (($maxLen / 2) + 1) * 2 ))
+
+    local lenDif=$(( maxLen - ${#ttl} ))
+    printf "%s%${lenDif}s\t%s\t%s\t%s\t%s\n" "${ttl}" " " "PID" "CPU,%" "MEM,%" "RSS,bytes"
+
+    XDL_STATUS_MAXLEN=${maxLen}
+}
+
 function stopDaemon {
     local DAEMON="$1"
     local FORCE="${2:0}"
@@ -380,6 +444,24 @@ function __getAvailableDaemons {
     echo ${available_daemons}
 }
 
+function __getMaxDaemonLength {
+    if [ "xx${XDL_MAX_DAEMON_LENGTH}" != "xx" ]; then
+        echo ${XDL_MAX_DAEMON_LENGTH}
+        exit 0
+    fi
+
+    local len=1
+    for d in `__getAvailableDaemons`
+    do
+        local l=${#d}
+        if [ ${len} -lt ${l} ]; then
+            len=${l}
+        fi
+    done
+    XDL_MAX_DAEMON_LENGTH=${len}
+    echo ${len}
+}
+
 function __checkDaemon {
     for d in `__getAvailableDaemons`
     do
@@ -442,6 +524,7 @@ function __showUsage {
     echo "Usage:"
     echo "${cmd} start       - to start daemon in background"
     echo "${cmd} stop        - to stop daemon"
+    echo "${cmd} status      - displays daemon status"
     echo "${cmd} restart     - to stop and start daemon"
     echo
     echo "${cmd} run         - to start daemon in the current console"
@@ -471,6 +554,10 @@ function __runDaemonCommand {
             run_cmd_1="${runner} $debug"
         ;;
 
+        status)
+            run_cmd_1="statusDaemon \"$daemon\""
+        ;;
+
         stop)
             force=0
             if [ "${command_sub_name}" == "force" ]; then
@@ -496,7 +583,7 @@ function __runDaemonCommand {
         ;;
     esac
 
-    if [ "xx${owner}" = "xx" -o $(id -un) = "${owner}" ];
+    if [ "${command_name}" = "status" -o "xx${owner}" = "xx" -o $(id -un) = "${owner}" ];
     then
         ${run_cmd_1}
         ${run_cmd_2}
