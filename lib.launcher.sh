@@ -14,7 +14,7 @@
 xdl_home="https://github.com/amentain/launcher.sh"
 xdl_latest_release="https://api.github.com/repos/amentain/launcher.sh/releases/latest"
 xdl_latest_release_cacheTime=$(( 2 * 60 * 60 ))
-xdl_version="0.5.0"
+xdl_version="0.5.1"
 
 xdl_install_path="${BASH_SOURCE}"
 
@@ -601,6 +601,9 @@ xdl_log_dir="${xdl_log_dir}"
 xdl_conf="${xdl_conf}"
 
 xdl_api_mode=1
+
+params="${params}"
+args="${args}"
 
 . ${xdl_install_path}
 
